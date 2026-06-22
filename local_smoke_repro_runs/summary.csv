@@ -1,0 +1,4 @@
+model_key,seed,epochs,selected_checkpoint,selected_val_acc,selected_epoch,best_val_raw,best_raw_epoch,best_val_ema,best_ema_epoch,test_acc,wall_min,checkpoint_path,json_path
+ultrawidescaledtail10,42,1,raw,10.6,1,10.6,1,10.6,1,,0.037531042098999025,local_smoke_repro_runs\ultrawidescaledtail10_e1_s42.pt,local_smoke_repro_runs\ultrawidescaledtail10_e1_s42.json
+ultrawidescaledtail10,43,1,raw,7.18,1,7.18,1,7.18,1,,0.02242481311162313,local_smoke_repro_runs\ultrawidescaledtail10_e1_s43.pt,local_smoke_repro_runs\ultrawidescaledtail10_e1_s43.json
+ultrawidescaledtail10,44,1,raw,10.34,1,10.34,1,10.34,1,,0.023072469234466552,local_smoke_repro_runs\ultrawidescaledtail10_e1_s44.pt,local_smoke_repro_runs\ultrawidescaledtail10_e1_s44.json

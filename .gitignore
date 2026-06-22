@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Model checkpoints — exceed GitHub's 100 MB/file limit (~163 MB each)
+*.pt
+
+# Claude Code local artifact
+.claude_resources.json
+
+# Build/upload bundle (regenerated artifact; delete this line to keep it)
+runpod_finalvers_upload.zip

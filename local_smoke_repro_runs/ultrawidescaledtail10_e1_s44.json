@@ -1,0 +1,61 @@
+{
+  "model_key": "ultrawidescaledtail10",
+  "model_name": "UltraWideScaledTail10",
+  "seed": 44,
+  "config": {
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "epochs": 1,
+    "batch_size": 128,
+    "num_workers": 0,
+    "parallel_seed_workers": "auto",
+    "aug": "heavy",
+    "lr": 0.1,
+    "wd": 0.0005,
+    "momentum": 0.9,
+    "mixup": 0.2,
+    "label_smoothing": 0.1,
+    "ema_decay": 0.999,
+    "checkpoint_metric": "best",
+    "patience": null,
+    "use_amp": true,
+    "channels_last": true,
+    "max_train_batches": 1,
+    "eval_test_at_end": false,
+    "deterministic": true,
+    "download": false,
+    "log_every": 1,
+    "data_dir": "../data",
+    "output_dir": "./local_smoke_repro_runs",
+    "cuda_device": null
+  },
+  "n_layers": 10,
+  "n_params": 21337656,
+  "best_val_raw": 10.34,
+  "best_raw_epoch": 1,
+  "best_val_ema": 10.34,
+  "best_ema_epoch": 1,
+  "checkpoint_metric": "best",
+  "selected_checkpoint": "raw",
+  "selected_val_acc": 10.34,
+  "selected_epoch": 1,
+  "test_acc": null,
+  "wall_sec": 1.3843481540679932,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 2.3031795024871826,
+      "val_raw": 10.34,
+      "val_loss_raw": 33036365.2096,
+      "val_ema": 10.34,
+      "val_loss_ema": 33036365.2096,
+      "lr": 0.0,
+      "epoch_sec": 1.3840842247009277
+    }
+  ],
+  "checkpoint_path": "local_smoke_repro_runs\\ultrawidescaledtail10_e1_s44.pt",
+  "json_path": "local_smoke_repro_runs\\ultrawidescaledtail10_e1_s44.json"
+}
