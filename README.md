@@ -132,6 +132,13 @@ single worker on one GPU to avoid VRAM contention. Outputs land in
 | `summary.csv` | Per-seed results, 8×750 run |
 | `local_smoke_repro_runs/` | 3-seed pipeline verification (not accuracy evidence) |
 | `run_full_{5,8,16}seed.py` | Seed-count run configurations |
+| `full_8seed_run.log` | Raw training log behind the headline number |
+| `full_5seed_run.log` / `.err.log` | Earlier 5-seed run, superseded by the 8-seed result |
+| `RUNPOD_README.md` | The rented-GPU setup the 8-seed run was executed on |
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
 
 ---
 
