@@ -1,6 +1,6 @@
 # RunPod Upload Instructions
 
-Upload this project zip with the RunPod custom uploader, then run the commands below inside the pod.
+Copy the project into `/workspace/finalvers` on a pod with PyTorch, torchvision, and access to CIFAR-10. Review GPU capacity and run configuration before starting a full sweep.
 
 ## Files included
 
@@ -48,7 +48,7 @@ cd /workspace/finalvers
 python -u run_full_5seed.py 2>&1 | tee full_5seed_run.log
 ```
 
-The 8-seed and 16-seed launchers use all 8 GPUs. The 5-seed launcher uses 5 GPUs.
+On an eight-GPU pod, the eight-seed launcher runs one wave and the sixteen-seed launcher runs two waves. The five-seed launcher uses five GPUs. Automatic worker selection adapts to the available GPU count.
 
 ## Monitor
 
@@ -57,22 +57,18 @@ watch -n 2 nvidia-smi
 ```
 
 ```bash
-tail -f full_5seed_run.log
+tail -f full_8seed_run.log
 ```
 
 ## Outputs
 
-Results are written to:
+Each launcher writes a separate output directory below the working directory:
 
-```text
-/workspace/finalvers/repro_runs_ultrawidescaledtail10_5seed/
-```
+| Launcher | Output directory |
+| --- | --- |
+| `run_full_5seed.py` | `repro_runs_ultrawidescaledtail10_5seed/` |
+| `run_full_8seed.py` | `repro_runs_ultrawidescaledtail10_8seed/` |
+| `run_full_16seed.py` | `repro_runs_ultrawidescaledtail10_16seed/` |
 
-The most important files are:
-
-```text
-summary.csv
-summary.json
-ultrawidescaledtail10_e750_s*.json
-ultrawidescaledtail10_e750_s*.pt
-```
+Inspect `summary.csv`, `summary.json`, and the per-seed JSON logs and checkpoint files.
+The launchers select validation checkpoints with `eval_test_at_end=False`. Their summaries do not establish official test accuracy.

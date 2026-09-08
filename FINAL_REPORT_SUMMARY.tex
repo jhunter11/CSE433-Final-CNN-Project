@@ -6,14 +6,15 @@
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{graphicx}
-\usepackage{tikz}
 \usepackage[table]{xcolor}
+\usepackage{tikz}
 \usepackage{listings}
 \usepackage{needspace}
 \usepackage{float}
 \usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
 \usetikzlibrary{arrows.meta,positioning}
-\newcommand{\reprofile}{\texttt{train\_}\allowbreak\texttt{ultrawidescaledtail10\_}\allowbreak\texttt{repro.py}}
+\newcommand{\reprofile}{\path{train_ultrawidescaledtail10_repro.py}}
 \lstset{
     basicstyle=\ttfamily\footnotesize,
     breaklines=true,
@@ -27,7 +28,7 @@
 
 \title{CSE 433 Final Project}
 \author{Jack Hunter}
-\date{\today}
+\date{August 2026 experiment record; September 2026 documentation review}
 
 \begin{document}
 
@@ -44,11 +45,7 @@ not counted as weighted layers.
 
 \subsection{Architecture}
 
-The model uses a wide convolutional trunk followed by a low-resolution scaled residual
-tail. The central idea is to spend the limited layer budget on high-capacity feature
-maps, while placing the extra residual refinement after the spatial resolution has been
-reduced. This gives the model high channel capacity without violating the 10-layer
-depth limit.
+The model uses a wide convolutional trunk followed by a residual tail at lower resolution. The design allocates ten counted layers across feature extraction, the tail, and the classifier. The layer count does not bound parameter count or compute cost.
 
 \begin{center}
 \begin{tabular}{rlll}
@@ -69,17 +66,11 @@ depth limit.
 \end{tabular}
 \end{center}
 
-The audited model has exactly 10 weighted layers and 21,337,656 parameters. A dummy
-forward pass returns logits of shape $(2, 10)$, matching the 10 CIFAR-10 classes.
+The recorded model audit counts ten weighted layers and 21,337,656 parameters, including frozen parameters. Its dummy forward pass returns logits with shape $(2, 10)$. This documentation review did not repeat the full training sweep.
 
 \subsection{Visual model data flow}
 
-Figure~\ref{fig:dataflow} shows the main data flow through the network for one
-CIFAR-10 image. The diagram reports the feature-map shape after each major stage, after
-the pooling operation inside that stage has been applied. The largest activation tensor
-appears early, before the spatial resolution has been reduced. The later tail operates
-on a compact $768 \times 3 \times 3$ tensor, which is why it is an efficient place to
-spend the remaining layer budget.
+Figure~\ref{fig:dataflow} records feature shapes after the pooling operation in each stage. The residual tail operates on a $768 \times 3 \times 3$ tensor. That placement reduces spatial activation size relative to the earlier blocks.
 
 \begin{figure}[ht]
 \centering
@@ -113,13 +104,7 @@ spend the remaining layer budget.
 
 \subsection{Layer-by-layer whole-model audit}
 
-Table~\ref{tab:layerdata} gives a forward-pass audit of the whole model, not only the
-10 counted weighted layers. The counted project layers are the \texttt{Conv2d} and
-\texttt{Linear} rows. The normalization, activation, pooling, channel-gating,
-residual-scale, and stochastic-depth rows are included so the table represents the
-actual computation path used by the final network. Reused activation modules are
-shown at each conceptual use site because this is clearer than hiding repeated GELU
-applications behind a single module name.
+Table~\ref{tab:layerdata} includes supporting operations as well as the ten counted layers. The project count includes \texttt{Conv2d} and \texttt{Linear} modules on the forward path. Other trainable parameters still contribute to the model total. Repeated activations appear at each use site.
 
 
 \begingroup
@@ -154,7 +139,7 @@ r@{}}
 \rowcolor{gray!5}
 1 & \texttt{stem} & Conv2d & Yes & $24{\times}3{\times}2{\times}2$ &
 $24{\times}31{\times}31$ & 312 \\
-2 & \texttt{stem\_act} & GELU & No & -- &
+2 & \texttt{stem\_act} & GELU & No & N/A &
 $24{\times}31{\times}31$ & 0 \\
 \rowcolor{gray!5}
 3 & \texttt{block1.conv1} & Conv2d & Yes & $384{\times}24{\times}3{\times}3$ &
@@ -164,7 +149,7 @@ $384{\times}15{\times}15$ & 0 \\
 \rowcolor{gray!5}
 5 & \texttt{block1.bn1} & BNBias & No & $C{=}384$ &
 $384{\times}15{\times}15$ & 768 \\
-6 & \texttt{block1.act1} & GELU & No & -- &
+6 & \texttt{block1.act1} & GELU & No & N/A &
 $384{\times}15{\times}15$ & 0 \\
 \rowcolor{gray!5}
 7 & \texttt{block1.conv2} & Conv2d & Yes & $384{\times}384{\times}3{\times}3$ &
@@ -172,7 +157,7 @@ $384{\times}15{\times}15$ & 1,327,104 \\
 8 & \texttt{block1.bn2} & BNBias & No & $C{=}384$ &
 $384{\times}15{\times}15$ & 768 \\
 \rowcolor{gray!5}
-9 & \texttt{block1.act2} & GELU & No & -- &
+9 & \texttt{block1.act2} & GELU & No & N/A &
 $384{\times}15{\times}15$ & 0 \\
 10 & \texttt{block2.conv1} & Conv2d & Yes & $768{\times}384{\times}3{\times}3$ &
 $768{\times}15{\times}15$ & 2,654,208 \\
@@ -182,14 +167,14 @@ $768{\times}7{\times}7$ & 0 \\
 12 & \texttt{block2.bn1} & BNBias & No & $C{=}768$ &
 $768{\times}7{\times}7$ & 1,536 \\
 \rowcolor{gray!5}
-13 & \texttt{block2.act1} & GELU & No & -- &
+13 & \texttt{block2.act1} & GELU & No & N/A &
 $768{\times}7{\times}7$ & 0 \\
 14 & \texttt{block2.conv2} & Conv2d & Yes & $768{\times}768{\times}3{\times}3$ &
 $768{\times}7{\times}7$ & 5,308,416 \\
 \rowcolor{gray!5}
 15 & \texttt{block2.bn2} & BNBias & No & $C{=}768$ &
 $768{\times}7{\times}7$ & 1,536 \\
-16 & \texttt{block2.act2} & GELU & No & -- &
+16 & \texttt{block2.act2} & GELU & No & N/A &
 $768{\times}7{\times}7$ & 0 \\
 \rowcolor{gray!5}
 17 & \texttt{block3.conv} & Conv2d & Yes & $768{\times}768{\times}3{\times}3$ &
@@ -199,7 +184,7 @@ $768{\times}3{\times}3$ & 0 \\
 \rowcolor{gray!5}
 19 & \texttt{block3.bn} & BNBias & No & $C{=}768$ &
 $768{\times}3{\times}3$ & 1,536 \\
-20 & \texttt{block3.act} & GELU & No & -- &
+20 & \texttt{block3.act} & GELU & No & N/A &
 $768{\times}3{\times}3$ & 0 \\
 \rowcolor{gray!5}
 21 & \texttt{tail.conv1} & Conv2d & Yes & $768{\times}96{\times}3{\times}3,\ g{=}8$ &
@@ -207,14 +192,14 @@ $768{\times}3{\times}3$ & 663,552 \\
 22 & \texttt{tail.bn1} & BNBias & No & $C{=}768$ &
 $768{\times}3{\times}3$ & 1,536 \\
 \rowcolor{gray!5}
-23 & \texttt{tail.act1} & GELU & No & -- &
+23 & \texttt{tail.act1} & GELU & No & N/A &
 $768{\times}3{\times}3$ & 0 \\
 24 & \texttt{tail.conv2} & Conv2d & Yes & $768{\times}96{\times}3{\times}3,\ g{=}8$ &
 $768{\times}3{\times}3$ & 663,552 \\
 \rowcolor{gray!5}
 25 & \texttt{tail.bn2} & BNBias & No & $C{=}768$ &
 $768{\times}3{\times}3$ & 1,536 \\
-26 & \texttt{tail.act2} & GELU & No & -- &
+26 & \texttt{tail.act2} & GELU & No & N/A &
 $768{\times}3{\times}3$ & 0 \\
 \rowcolor{gray!5}
 27 & \texttt{tail.conv3} & Conv2d & Yes & $768{\times}768{\times}3{\times}3$ &
@@ -222,7 +207,7 @@ $768{\times}3{\times}3$ & 5,308,416 \\
 28 & \texttt{tail.bn3} & BNBias & No & $C{=}768$ &
 $768{\times}3{\times}3$ & 1,536 \\
 \rowcolor{gray!5}
-29 & \texttt{tail.channel\_gate} & ChannelGate & No & $C{=}768$ &
+29 & \path{tail.channel_gate} & \shortstack[l]{Channel\\Gate} & No & $C{=}768$ &
 $768{\times}3{\times}3$ & 1,536 \\
 30 & \texttt{tail.res\_scale} & Residual scale & No & $1{\times}768{\times}1{\times}1$ &
 $768{\times}3{\times}3$ & 768 \\
@@ -232,7 +217,7 @@ $768{\times}3{\times}3$ & 0 \\
 32 & \texttt{tail.act3} & GELU & No & residual output &
 $768{\times}3{\times}3$ & 0 \\
 \rowcolor{gray!5}
-33 & \texttt{pool} & AdaptiveMaxPool2d & No & $1{\times}1$ &
+33 & \texttt{pool} & \shortstack[l]{Adaptive\\MaxPool2d} & No & $1{\times}1$ &
 $768{\times}1{\times}1$ & 0 \\
 34 & \texttt{fc} & Linear & Yes & $10{\times}768$ &
 $10$ & 7,680 \\
@@ -249,11 +234,7 @@ $10$ & 7,680 \\
 \end{longtable}
 \endgroup
 
-The table makes the full path explicit while preserving the project count: there are
-exactly 10 \texttt{Conv2d}/\texttt{Linear} rows, and all other rows are supporting
-operations. Most parameters still live in the dense $768 \rightarrow 768$ convolutions,
-while the normalization, channel-gating, and residual-scale pieces add only 13,056
-parameters total.
+The ten counted convolutional and linear layers contain 21,324,600 parameters. Supporting normalization, gating, and residual-scale parameters contribute 13,056. This accounts for the recorded total of 21,337,656.
 
 
 \begin{figure}[H]
@@ -359,14 +340,12 @@ Output directory & \texttt{repro\_runs\_ultrawidescaledtail10\_8seed} \\
 \end{tabular}
 \end{center}
 
-The script first ensures that CIFAR-10 is available, then launches one process per GPU.
-Each seed writes a checkpoint and JSON log. At the end, the script writes
-\texttt{summary.csv} and \texttt{summary.json}.
+The script checks for CIFAR-10 and launches one seed process per available GPU. Each seed writes a checkpoint and JSON log. The sweep writes \texttt{summary.csv} and \texttt{summary.json}.
 
 \paragraph{Running on a single-GPU machine.}
 The \texttt{"auto"} setting also handles single-GPU hardware: with one visible GPU,
 the script runs the 8 seeds sequentially on that GPU, with no code change required.
-However, each seed took about 93 minutes on an A40, so reproducing all 8 seeds
+However, each seed took about 93 minutes in the recorded A40 run, so reproducing all 8 seeds
 sequentially would take roughly 12 hours. To verify the pipeline in a much shorter
 time, edit the constants at the top of
 \reprofile to use a single seed:
@@ -375,7 +354,7 @@ time, edit the constants at the top of
 RUN_SEEDS = (42,)
 \end{verbatim}
 
-This reduces the run to about 90 minutes on an A40-class GPU while still producing a
+The recorded timing suggests about 90 minutes for one seed on comparable hardware while still producing a
 complete checkpoint, JSON log, and \texttt{summary.csv} entry for that seed. The same run
 command is used in all cases:
 
@@ -387,14 +366,14 @@ python -u train_ultrawidescaledtail10_repro.py 2>&1 | tee full_8seed_run.log
 
 Before the final 750-epoch run, I selected the model using prior 500-epoch
 multi-seed evidence. Among the three strongest depth-limited single-model candidates,
-\texttt{UltraWideScaledTail10} had the highest mean out-of-sample validation accuracy.
+\texttt{UltraWideScaledTail10} had the highest mean selected validation accuracy.
 Ensemble artifacts in the parent experiment folder did score higher, but they combine
 multiple checkpoints, so I left them out of the single-model result.
 
 \begin{center}
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Model} & \textbf{Seeds} & \textbf{Mean OOS Val.} & \textbf{Std.} & \textbf{Layers} \\
+\textbf{Model} & \textbf{Seeds} & \textbf{Mean Selected Val.} & \textbf{Std.} & \textbf{Layers} \\
 \midrule
 \texttt{UltraWideScaledTail10} & 3 & 96.97 & 0.08 & 10 \\
 \texttt{WideScaledPlus10} & 3 & 96.70 & 0.14 & 10 \\
@@ -408,7 +387,7 @@ My retained seed-level evidence for the selected model was:
 \begin{center}
 \begin{tabular}{rrrrr}
 \toprule
-\textbf{Seed} & \textbf{Selected OOS Val.} & \textbf{Best Raw} & \textbf{Best EMA} & \textbf{Selected Epoch} \\
+\textbf{Seed} & \textbf{Selected Val.} & \textbf{Best Raw} & \textbf{Best EMA} & \textbf{Selected Epoch} \\
 \midrule
 42 & 96.94 & 96.88 & 96.94 & 459 \\
 43 & 97.06 & 97.06 & 97.02 & 481 \\
@@ -417,16 +396,13 @@ My retained seed-level evidence for the selected model was:
 \end{tabular}
 \end{center}
 
-The selected checkpoints occurred late in training, around epochs 459--486. This supports
-the final decision to increase the reproducibility schedule to 750 epochs.
+The earlier run selected checkpoints at epochs 459 to 486. That observation motivated a longer schedule. It does not establish that 750 epochs improves accuracy; the later selected-validation mean was lower.
 
 \subsection{Final 8-seed results}
 
-The completed 8-seed RunPod sweep is summarized below from
-\texttt{summary.csv}. The log file \texttt{full\_8seed\_run.log} confirms that all eight
-seed jobs finished and wrote the sweep summary. The \texttt{test\_acc} column in the CSV
-is blank because this run used validation selection only
-(\texttt{RUN\_EVAL\_TEST\_AT\_END = False}).
+The table below reports the eight-seed sweep from \path{summary.csv}.
+The run log records completion for all eight seeds.
+The final test-evaluation switch was false, so all test-accuracy cells are blank.
 
 \begin{center}
 \begin{tabular}{rlrrrrr}
@@ -458,9 +434,7 @@ seed, averages to 96.84\%, matching the selected-validation mean.
 \section{How and Why the Model Was Improved}
 
 \Needspace{40\baselineskip}
-I organized this section around the actual custom blocks in the final model. Each
-block is shown in abbreviated code form, followed by the design reason and the alternative
-that was rejected.
+The following code excerpts describe the custom blocks in the selected model. The explanations separate implementation choices from effects that would require controlled ablations.
 
 \subsection{Full architecture: wide trunk plus late residual tail}
 
@@ -488,14 +462,7 @@ class UltraWideScaledTail10(nn.Module):
         return self.fc(x) * self.scale
 \end{lstlisting}
 
-I made the model wider instead of deeper because the project has a strict
-10-weighted-layer budget. Wide Residual Networks showed that increasing width can be a
-better use of capacity than simply adding more depth on CIFAR-style tasks
-\cite{zagoruyko2016wide}. The competing \texttt{DeepScaled10} model had fewer parameters
-and more depth-like structure, but its 3-seed mean validation accuracy was lower
-(96.37 versus 96.97). The selected architecture therefore spends the limited layer budget
-on a high-capacity trunk and only adds extra refinement after the image has been reduced
-to a small spatial map.
+The ten-layer constraint motivated a wide trunk and a late residual tail. The earlier three-seed comparison recorded 96.37\% selected validation accuracy for \texttt{DeepScaled10} and 96.97\% for \texttt{UltraWideScaledTail10}. Those candidates differed in more than width, so their scores do not isolate a width effect. Wide Residual Networks provides background for the design \cite{zagoruyko2016wide}.
 
 \Needspace{34\baselineskip}
 \subsection{AirBlock and SingleConvBlock: simple convolutional trunk}
@@ -527,12 +494,7 @@ class SingleConvBlock(nn.Module):
         return self.act(self.bn(self.pool(self.conv(x))))
 \end{lstlisting}
 
-I used these blocks over transformer-style or MLP-style blocks because CIFAR-10 images
-are small and local convolutional features are strong early in training. Pooling is
-separate and parameter-free, so downsampling does not consume another weighted layer.
-The activation is GELU rather than ReLU: ReLU is cheaper, but GELU gives a smooth
-nonlinearity without adding parameters or counted layers \cite{hendrycks2016gelu}. This
-was useful because the model has very few nonlinear stages under the layer limit.
+The trunk uses convolutions, parameter-free pooling, and GELU activations. Pooling and GELU add no counted convolutional or linear layers under the project rule. The recorded comparison does not include a matched transformer, MLP, or ReLU ablation. The GELU paper describes the activation used here \cite{hendrycks2016gelu}.
 
 \Needspace{14\baselineskip}
 \subsection{BNBias: normalization without extra trainable scale}
@@ -545,12 +507,7 @@ class BNBias(nn.BatchNorm2d):
         self.weight.requires_grad = False
 \end{lstlisting}
 
-\texttt{BNBias} keeps the stabilizing effect of batch normalization while freezing the
-multiplicative scale parameter. Batch normalization is used because it improves
-optimization by normalizing intermediate feature distributions \cite{ioffe2015batchnorm}.
-I chose this over no normalization because the very wide layers were harder to train
-stably without normalization. I also chose it over adding heavier normalization or
-attention layers because the main capacity should stay in the counted convolutions.
+\texttt{BNBias} inherits batch normalization with affine parameters, initializes the scale to one, and freezes that scale. The bias remains trainable. The repository does not supply a matched no-normalization or trainable-scale ablation proving the effect of this choice. Batch normalization is the underlying method \cite{ioffe2015batchnorm}.
 
 \Needspace{18\baselineskip}
 \subsection{ChannelGate: lightweight channel attention}
@@ -568,12 +525,7 @@ class ChannelGate(nn.Module):
         return x * (1.0 + scale)
 \end{lstlisting}
 
-I used this block instead of a full Squeeze-and-Excitation MLP. SE networks showed that
-channel-wise recalibration can improve convolutional features \cite{hu2018senet}, but a
-standard SE block would add extra \texttt{Linear} or \texttt{Conv2d} layers. Under my
-layer-count rule, those layers would count against the model budget. \texttt{ChannelGate} keeps the useful idea,
-global channel statistics controlling channel strength, while avoiding additional counted
-weighted layers.
+\texttt{ChannelGate} uses spatial means and per-channel weights and biases to scale activations. It adds trainable parameters without adding a \texttt{Linear} or \texttt{Conv2d} module. Squeeze-and-Excitation is related background \cite{hu2018senet}. The recorded runs do not isolate the accuracy contribution of this gate.
 
 \Needspace{20\baselineskip}
 \subsection{DropPath: residual-path regularization}
@@ -593,11 +545,7 @@ class DropPath(nn.Module):
         return x * mask.div(keep_prob)
 \end{lstlisting}
 
-\texttt{DropPath} was my choice over ordinary dropout because the main overfitting risk is the
-large residual tail, not a dense classifier head. Dropout reduces co-adaptation
-\cite{hinton2012dropout,srivastava2014dropout}; stochastic depth applies the same idea
-to residual branches \cite{huang2016stochasticdepth}. In this model, the residual tail is
-randomly weakened during training while the full path is used at inference.
+\texttt{DropPath} randomly drops the residual branch per example during training and rescales retained branches. Evaluation uses the complete path. The configured drop probability is 0.03. The implementation follows a stochastic-depth approach \cite{huang2016stochasticdepth}; this record has no matched comparison with ordinary dropout.
 
 \Needspace{34\baselineskip}
 \subsection{UltraWideScaledTail: grouped residual refinement}
@@ -628,15 +576,7 @@ class UltraWideScaledTail(nn.Module):
         return self.act(residual + self.drop_path(self.res_scale * x))
 \end{lstlisting}
 
-I placed the tail after the resolution has fallen to $768 \times 3 \times 3$. I chose
-this over adding early high-resolution convolutions because late convolutions are much
-cheaper in activation memory. The residual addition follows the ResNet idea of learning a
-correction to an existing representation \cite{he2016resnet}. The first two tail
-convolutions are grouped to reduce parameter and compute cost while retaining multiple
-parallel transformations, following the ResNeXt cardinality idea \cite{xie2017resnext}.
-The final dense convolution mixes information across all channels. The residual scale is
-initialized at zero so the tail starts as a conservative correction instead of disrupting
-the trunk at the start of training.
+The tail takes a $768 \times 3 \times 3$ tensor. Its first two convolutions use eight groups; the third mixes all channels. Grouping reduces parameter count relative to dense convolutions with the same dimensions. The trainable residual scale starts at zero. Residual learning and grouped transformations informed this design \cite{he2016resnet,xie2017resnext}. Their presence alone does not establish an accuracy gain in this model.
 
 \Needspace{20\baselineskip}
 \subsection{Initialization}
@@ -656,11 +596,7 @@ def _apply_init(self) -> None:
     nn.init.kaiming_normal_(self.fc.weight, nonlinearity="linear")
 \end{lstlisting}
 
-I used Dirac initialization for convolutional layers because it starts compatible
-layers close to an identity-like mapping. This matches the residual design: begin from a
-stable path and learn useful deviations. The classifier uses Kaiming initialization,
-which was designed for deep rectifier networks and remains a standard initialization
-choice for convolutional classifiers \cite{he2015rectifiers}.
+The script applies Dirac initialization to the listed convolutions. Shape and group constraints determine which channels this initialization can preserve. The classifier calls Kaiming initialization with the linear nonlinearity setting. The record contains no matched initialization ablation. The cited initialization paper supplies background \cite{he2015rectifiers}.
 
 \subsection{Training recipe choices}
 
@@ -670,21 +606,16 @@ choice for convolutional classifiers \cite{he2015rectifiers}.
 \textbf{Technique} & \textbf{Used in script} & \textbf{Reason} \\
 \midrule
 RandAugment and random erasing & \texttt{RandAugment(2,14)} plus
-\texttt{RandomErasing(p=0.25)} & Stronger image variation without a separate policy
-search; random erasing forces less reliance on one local cue
+\texttt{RandomErasing(p=0.25)} & Adds image transformations and erased regions to training inputs
 \cite{cubuk2020randaugment,zhong2020randomerasing}. \\
-Mixup & \texttt{RUN\_MIXUP = 0.2} & Smooths labels between examples and reduces
-overconfident memorization \cite{zhang2018mixup}. \\
-Label smoothing & \texttt{RUN\_LABEL\_SMOOTHING = 0.1} & Prevents the classifier from
-training against fully hard one-hot targets \cite{szegedy2016inception}. \\
+Mixup & \texttt{RUN\_MIXUP = 0.2} & Mixes examples and their target labels \cite{zhang2018mixup}. \\
+Label smoothing & \texttt{RUN\_LABEL\_SMOOTHING = 0.1} & Uses softened target labels \cite{szegedy2016inception}. \\
 SGD with warmup and cosine decay & \texttt{SGD(..., nesterov=True)} with warmup cosine
-schedule & Warmup avoids unstable early updates; cosine decay gives smaller late
-updates for convergence \cite{goyal2017largebatch,loshchilov2017sgdr}. \\
-EMA checkpointing & \texttt{AveragedModel(..., ema\_decay=0.999)} & Weight averaging
-often improves validation stability and can select a flatter solution
+schedule & Raises the initial learning rate during warmup and reduces it with cosine decay \cite{goyal2017largebatch,loshchilov2017sgdr}. \\
+EMA checkpointing & \texttt{AveragedModel(..., ema\_decay=0.999)} & Maintains averaged weights for validation-based checkpoint selection
 \cite{izmailov2018swa,tarvainen2017meanteacher}. \\
 Mixed precision and channels-last & CUDA bfloat16 autocast and channels-last tensors &
-Improves GPU throughput and memory behavior without changing the architecture
+Changes numeric precision and tensor layout; throughput depends on hardware and operations
 \cite{micikevicius2018mixed,pytorchchannelslast}. \\
 \bottomrule
 \end{tabular}
@@ -693,11 +624,7 @@ Improves GPU throughput and memory behavior without changing the architecture
 \clearpage
 \section{Attempts I Did Not Keep}
 
-I tried or considered the following ideas during model development but did not
-keep them in my final single-model submission. I included more than ten because they show the
-iteration path, not just the final result. I treated these attempts as ablations: each
-one tested whether a different way of spending the 10-layer budget would give a better
-accuracy, simplicity, or reproducibility tradeoff.
+This table records candidates, design choices, and packaging decisions from development. Its twelve rows are not twelve independent controlled ablations. Historical official-test results and later validation-selected scores use different evaluation protocols.
 
 \begingroup
 \small
@@ -711,8 +638,7 @@ accuracy, simplicity, or reproducibility tradeoff.
 1 & \texttt{DeepScaled10} &
 A more depth-oriented 10-layer candidate with fewer parameters than the final model. &
 Its prior 3-seed mean validation accuracy was 96.37, below 96.97 for
-\texttt{UltraWideScaledTail10}. This told me that extra depth-like structure was not as
-valuable as width under the same layer limit. \\
+\texttt{UltraWideScaledTail10}. The comparison does not isolate width from other architectural differences. \\
 2 & \texttt{WideScaledPlus10} &
 A close 10-layer width-based alternative with a different scaling and tail balance. &
 It was competitive, but its prior 3-seed mean was 96.70 with higher spread than the
@@ -731,59 +657,41 @@ fit the hardware and layer constraint. \\
 5 & Historical \texttt{UltraWide7} &
 An earlier 7-layer wide model that tested whether fewer counted layers could still get
 close to the final accuracy. &
-It reached 95.14 official test accuracy, which was useful progress but clearly below the
-later 10-layer evidence. I used it as motivation to keep the wide trunk but spend the
-remaining layers more carefully. \\
+It recorded 95.14\% official-test accuracy. That split differs from the later validation-selected results, so these values cannot establish the improvement. \\
 6 & Historical \texttt{WideScaled10} &
 An earlier width-plus-tail 10-layer direction. &
-It reached 94.83 official test accuracy, below later variants. The result suggested that
-the general idea was promising, but the exact scaling and late tail needed improvement. \\
+It recorded 94.83\% official-test accuracy. This is a historical result under a different evaluation protocol. \\
 7 & \texttt{GhostScaled10} &
 A compact ghost-style module intended to get cheaper feature expansion. &
-It reached 94.52 official test accuracy and did not justify replacing the direct wide
-convolutions. The cheaper module saved capacity, but the wide trunk learned stronger
-CIFAR-10 features. \\
+It recorded 94.52\% official-test accuracy. The record does not isolate its module choice from other training differences. \\
 8 & \texttt{CoordAtt10} &
 A coordinate-attention style model that tested whether explicit spatial/channel
 attention would help enough to replace width. &
-It also reached 94.52 official test accuracy. I did not keep it because the added
-attention idea did not outperform the simpler wide convolutional trunk. \\
+It also recorded 94.52\% official-test accuracy. A matched comparison would be needed to attribute an effect to attention. \\
 9 & Learned feature-concatenation ensemble &
 Combining features from several trained models before classification. &
-Did not respond to training as I hoped, I realized an ensamble of seperately trained
-model would be better, but that would entail adding an 11th ensamble layer to the
-ensamble of 10-Layer models. \\
+I did not retain this design. A learned layer combining separate ten-layer models would exceed the selected single-model interpretation of the constraint. \\
 10 & Weighted logit ensemble &
 A simpler ensemble that combined model predictions rather than internal features. &
-It improved complementarity, but it did not fit my single-model goal and exceeded the
-strict total-layer interpretation. I kept the insight that the models made different
-errors, but not the ensemble itself. \\
+The project used a single-model submission. Combining logits from several checkpoints would change that scope, so this result is outside the final comparison. \\
 11 & Keeping all top-three models in the notebook &
 Leaving \texttt{UltraWideScaledTail10}, \texttt{WideScaledPlus10}, and
 \texttt{DeepScaled10} all in the final notebook. &
-This slowed iteration and made the final comparison less focused. I streamlined the
-notebook around the one model I actually selected, while reporting the others as
-selection evidence. \\
+The final notebook presents the selected model. The other candidates remain part of the earlier selection record. \\
 12 & Short training as final evidence &
 Using short runs to choose the final model and avoid long GPU sweeps. &
 Short runs were useful smoke tests, but the selected checkpoints appeared around epochs
-459--486 in prior evidence and around epochs 686--750 in the final 8-seed sweep. I
+459 to 486 in prior evidence and around epochs 686 to 750 in the final 8-seed sweep. I
 therefore used long training for the result I report. \\
 \bottomrule
 \end{longtable}
 \endgroup
 
-These attempts were useful because they narrowed the final design principle: within a
-strict 10-layer budget, the best single model was not the deepest or smallest model, but
-the model that combined a wide feature trunk with a low-resolution residual tail.
+The selected model had the highest earlier three-seed validation mean among the three listed final candidates. That selection result does not establish that it is the best model under every ten-layer interpretation.
 
-\section{Conclusion}
+\section{Result and evaluation limit}
 
-\texttt{UltraWideScaledTail10} is my final selected single model. It satisfies the
-10-weighted-layer budget, has 21,337,656 parameters, and I selected it because it had the
-best prior multi-seed out-of-sample validation performance among the tested single-model
-candidates. I ran the final RunPod configuration for 8 seeds and 750 epochs on 8 A40 GPUs,
-with one independent seed process per GPU.
+The final eight-seed record averages 96.84\% selected validation accuracy, with sample standard deviation 0.10 percentage points. It uses 750 epochs and records one seed process on each of eight A40 GPUs. The \texttt{test\_acc} column is empty. These scores measure checkpoints selected on validation data; they are not untouched official-test accuracy or evidence of performance after deployment.
 
 \clearpage
 \begin{thebibliography}{99}
@@ -842,7 +750,7 @@ Detectors.
 \bibitem{srivastava2014dropout}
 N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, and R. Salakhutdinov.
 \newblock Dropout: A Simple Way to Prevent Neural Networks from Overfitting.
-\newblock \emph{Journal of Machine Learning Research}, 15:1929--1958, 2014.
+\newblock \emph{Journal of Machine Learning Research}, 15:1929 to 1958, 2014.
 \newblock \url{https://www.jmlr.org/papers/v15/srivastava14a.html}.
 
 \bibitem{huang2016stochasticdepth}
