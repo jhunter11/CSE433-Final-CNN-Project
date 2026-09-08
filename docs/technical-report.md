@@ -111,7 +111,7 @@ The retained per-seed results are:
 | 44 | 96.90 | 96.90 | 96.90 | 486 |
 
 The late selected checkpoints motivated a 750-epoch follow-up across eight seeds.
-The [final CSV](summary.csv) records a mean selected validation accuracy of 96.84%, with sample standard deviation 0.10 percentage points.
+The [final CSV](../results/eight-seed/summary.csv) records a mean selected validation accuracy of 96.84%, with sample standard deviation 0.10 percentage points.
 Its best seed reaches 96.98%. The final model has no recorded official test accuracy in that CSV.
 
 ## Design choices
@@ -152,6 +152,7 @@ Official test scores for older models are not directly comparable with selected 
 | --- | --- |
 | `hunter29_top3_depth_limited_models.ipynb` | Notebook with the selected model, audit, and reproducibility configuration |
 | `train_ultrawidescaledtail10_repro.py` | Single-model training script with top-of-file configuration |
-| `.claude_resources.json` | Local resource detection used to choose the parallelization strategy |
-| `local_smoke_repro_runs/summary.csv` | Local 3-seed smoke-test summary |
-| `local_smoke_repro_runs/summary.json` | Local 3-seed smoke-test detailed summary |
+| `results/smoke/summary.csv` | Local 3-seed smoke-test summary |
+| `results/smoke/summary.json` | Local 3-seed smoke-test detailed summary |
+
+The run instructions above preserve the original configuration. The current [launcher guide](runpod.md) uses one CLI for all seed counts.

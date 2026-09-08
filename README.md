@@ -17,7 +17,7 @@ Normalization, activation, pooling, residual addition, stochastic depth, and cha
 | Parameters | 21,337,656 |
 | Training schedule | 750 epochs per seed |
 
-The [per-seed CSV](summary.csv) records the selected checkpoint for each seed.
+The [per-seed CSV](results/eight-seed/summary.csv) records the selected checkpoint for each seed.
 Selection uses validation accuracy across raw and exponential-moving-average checkpoints.
 The final model has no recorded official test accuracy in that CSV.
 Repeated model and checkpoint selection can bias validation results upward.
@@ -35,42 +35,57 @@ Repeated model and checkpoint selection can bias validation results upward.
 | 10 | `fc` | Linear |
 
 The training recipe includes data augmentation, mixup, label smoothing, momentum SGD, a cosine schedule, and checkpoint averaging.
-The [technical report](FINAL_REPORT_DRAFT.md) records the architecture comparisons and rejected variants.
+The [technical report](docs/technical-report.md) records the architecture comparisons and rejected variants.
 Those comparisons describe this selection process. They do not isolate the causal effect of every training choice.
 
 ## Reproduce
 
 The full run requires PyTorch, torchvision, access to CIFAR-10, and suitable GPU capacity.
-Review the configuration at the top of the training script before running it:
+Preview the launcher settings before starting a run:
 
 ```bash
-python train_ultrawidescaledtail10_repro.py
+python run_experiment.py --dry-run
+python run_experiment.py --seed-count 8
 ```
 
-The default configuration runs eight seeds for 750 epochs each.
-For a pipeline smoke check, change the configuration to:
+The default runs seeds 42 through 49 for 750 epochs each, with the original training recipe.
+Use `--seed-count 5` or `--seed-count 16` for the other recorded launcher configurations.
+The preview prints overrides to `TrainConfig` without loading PyTorch, downloading data, or creating output files.
 
-```python
-RUN_SEEDS = (42,)
-RUN_EPOCHS = 1
-RUN_MAX_TRAIN_BATCHES = 1
+For a pipeline smoke check with cached CIFAR-10 data:
+
+```bash
+python run_experiment.py --seed-count 1 --epochs 1 --max-train-batches 1 --num-workers 0 --no-download --output-dir runs/smoke
 ```
 
-This checks execution only. It cannot reproduce the reported accuracy.
+This trains one batch and evaluates the validation split. It checks execution and cannot reproduce the reported accuracy.
 The automatic worker setting assigns one seed per GPU when multiple GPUs are available.
+New runs write under `runs/`. The committed evidence under `results/` stays separate.
+The original training file still supports its top-of-file configuration for notebook use.
+
+## Check the code
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m unittest discover -s tests -v
+python -m ruff check .
+```
+
+The tests check launcher arguments, offline preview, the ten-layer budget, parameter count, and finite logits for CIFAR-shaped inputs.
+They use synthetic tensors and do not download CIFAR-10 or repeat GPU training.
 
 ## Files
 
 | Path | Contents |
 | --- | --- |
-| `train_ultrawidescaledtail10_repro.py` | Training and run configuration |
+| `run_experiment.py` | Seed sweep CLI and offline preview |
+| `train_ultrawidescaledtail10_repro.py` | Model and training implementation |
 | `hunter29_top3_depth_limited_models.ipynb` | Model selection and layer audit |
-| `summary.csv` | Eight-seed validation results |
-| `full_8seed_run.log` | Training log for that run |
-| `FINAL_REPORT_DRAFT.md` | Technical report and earlier comparisons |
-| `FINAL_REPORT_SUMMARY.tex` | Report source |
-| `local_smoke_repro_runs/` | Earlier pipeline checks |
-| `RUNPOD_README.md` | Recorded GPU setup |
+| `results/` | Recorded runs, including failed runs and smoke checks |
+| `docs/technical-report.md` | Technical report and earlier comparisons |
+| `paper/summary.tex`, `paper/summary.pdf` | Report source and PDF |
+| `docs/runpod.md` | GPU setup and launch commands |
+| `tests/` | CLI and model contract tests |
 
 The reports and logs preserve the original experiment record. This documentation update did not repeat GPU training.
 
