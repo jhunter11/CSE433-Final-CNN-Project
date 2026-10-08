@@ -17,9 +17,8 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
+from torch import nn
 
 MODEL_KEY = "ultrawidescaledtail10"
 MODEL_NAME = "UltraWideScaledTail10"
@@ -298,7 +297,7 @@ def get_training_device(config: TrainConfig) -> torch.device:
 
 
 def make_transforms(aug: str):
-    import torchvision.transforms as transforms
+    from torchvision import transforms
 
     eval_tf = transforms.Compose(
         [
@@ -388,7 +387,7 @@ def ensure_cifar10_available(config: TrainConfig) -> None:
     if not config.download:
         return
     import torchvision
-    import torchvision.transforms as transforms
+    from torchvision import transforms
 
     data_root = Path(config.data_dir)
     data_root.mkdir(parents=True, exist_ok=True)
