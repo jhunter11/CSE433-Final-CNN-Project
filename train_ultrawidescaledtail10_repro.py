@@ -780,6 +780,16 @@ def train_seed_worker(args: tuple[TrainConfig, int, int | None, int]) -> dict:
     return train_one_seed(worker_config, seed)
 
 
+def train_seed_group_worker(
+    args: tuple[TrainConfig, tuple[int, ...], int | None, int],
+) -> list[dict]:
+    config, seeds, cuda_device, loader_workers = args
+    return [
+        train_seed_worker((config, seed, cuda_device, loader_workers))
+        for seed in seeds
+    ]
+
+
 def run_seed_sweep(config: TrainConfig) -> tuple[list[dict], dict]:
     ensure_cifar10_available(config)
     model = UltraWideScaledTail10()
@@ -798,11 +808,13 @@ def run_seed_sweep(config: TrainConfig) -> tuple[list[dict], dict]:
         gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
         loader_workers = max(0, config.num_workers // seed_workers)
         jobs = []
-        for job_idx, seed in enumerate(config.seeds):
-            cuda_device = job_idx % gpu_count if gpu_count else None
-            jobs.append((config, seed, cuda_device, loader_workers))
+        # Keep seeds for each GPU in one task, so uneven runtimes cannot overlap GPU jobs.
+        for worker_idx in range(seed_workers):
+            cuda_device = worker_idx if gpu_count else None
+            seeds = config.seeds[worker_idx::seed_workers]
+            jobs.append((config, seeds, cuda_device, loader_workers))
         print(
-            f"[sweep] running {len(jobs)} seed jobs with {seed_workers} parallel "
+            f"[sweep] running {len(config.seeds)} seeds with {seed_workers} parallel "
             f"processes and {loader_workers} DataLoader workers per process"
         )
         results = []
@@ -810,9 +822,9 @@ def run_seed_sweep(config: TrainConfig) -> tuple[list[dict], dict]:
         # forked subprocesses on Linux GPU pods.
         context = mp.get_context("spawn")
         with ProcessPoolExecutor(max_workers=seed_workers, mp_context=context) as executor:
-            futures = [executor.submit(train_seed_worker, job) for job in jobs]
+            futures = [executor.submit(train_seed_group_worker, job) for job in jobs]
             for future in as_completed(futures):
-                results.append(future.result())
+                results.extend(future.result())
         results.sort(key=lambda row: row["seed"])
     summary = summarize_results(results)
     write_sweep_outputs(config, results, summary)
